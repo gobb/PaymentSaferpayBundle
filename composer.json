@@ -1,0 +1,26 @@
+{
+    "name": "ibrows/payment-saferpay-bundle",
+    "type": "symfony-bundle",
+    "description": "Payment Bundle providing access to the Saferpay API",
+    "keywords": ["payment", "paypal"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": 	"Marc Steiner",
+            "email":	"marc.steiner@ibrows.ch"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.2",
+        "symfony/framework-bundle": ">=2.0",
+        "payment/saferpay-bundle": "dev-master"
+        "jms/payment-core-bundle": "dev-master"
+    },
+    "require-dev": {
+        "symfony/browser-kit": "2.1.x-dev"
+    },
+    "autoload": {
+        "psr-0": { "Ibrows\\PaymentSaferpayBundle": "" }
+    },
+    "target-dir": "Ibrows/PaymentSaferpayBundle"
+}
