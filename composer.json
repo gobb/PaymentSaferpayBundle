@@ -13,7 +13,7 @@
     "require": {
         "php": ">=5.3.2",
         "symfony/framework-bundle": ">=2.0",
-        "payment/saferpay-bundle": "dev-master"
+        "payment/saferpay-bundle": "dev-master",
         "jms/payment-core-bundle": "dev-master"
     },
     "require-dev": {
