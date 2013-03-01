@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+
+<container xmlns="http://symfony.com/schema/dic/services"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+
+    <parameters>
+        <parameter key="payment.plugin.saferpay.class">Ibrows\PaymentSaferpayBundle\Plugin\SaferpayPlugin</parameter>
+
+        <parameter key="payment.form.saferpay.class">Ibrows\PaymentSaferpayBundle\Form\SaferpayType</parameter>
+
+    </parameters>
+
+    <services>
+
+        <service id="payment.plugin.saferpay" class="%payment.plugin.saferpay.class%" >
+            <argument type="service" id="payment.saferpay" />
+            <argument type="service" id="logger" />
+            <argument type="service" id="session" />
+            <tag name="payment.plugin" />
+        </service>
+        
+        <service id="payment.form.saferpay" class="%payment.form.saferpay.class%">
+            <tag name="payment.method_form_type" />
+            <tag name="form.type" alias="saferpay" />
+        </service>
+    </services>
+</container>
