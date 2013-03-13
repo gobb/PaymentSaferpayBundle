@@ -15,7 +15,7 @@
         "symfony/framework-bundle": ">=2.0",
         "payment/saferpay-bundle": "dev-master",
         "jms/payment-core-bundle": "dev-master",
-        "guzzle/guzzle": "3.3.*"
+        "payment/httpclient-guzzle": "1.0.*"
     },
     "require-dev": {
         "symfony/browser-kit": "2.1.x-dev"
