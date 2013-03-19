@@ -1,8 +1,6 @@
 <?php
 
 namespace Ibrows\PaymentSaferpayBundle\Plugin;
-use Payment\Saferpay\SaferpayData;
-
 use JMS\Payment\CoreBundle\Model\PaymentInterface;
 
 use JMS\Payment\CoreBundle\Model\PaymentInstructionInterface;
@@ -53,7 +51,6 @@ class SaferpayPlugin extends AbstractPlugin
 
     protected $session;
 
-
     /**
      * @param string $returnUrl
      * @param string $cancelUrl
@@ -64,8 +61,9 @@ class SaferpayPlugin extends AbstractPlugin
         $this->saferpay = $saferpay;
         $this->saferpay->setLogger($logger);
         $this->saferpay->setHttpClient(new GuzzleClient());
-        $this->session = $session;
-        $saferpay->setData($session->get('payment.saferpay.data'));
+
+        $saferpay->setData(new SaferpayData());
+
     }
 
     /**
@@ -80,40 +78,49 @@ class SaferpayPlugin extends AbstractPlugin
 
     public function approve(FinancialTransactionInterface $transaction, $retry)
     {
-        $data = $transaction->getExtendedData();
+        $instruction = $transaction->getPayment()->getPaymentInstruction();
+        $data = $instruction->getExtendedData();
+
         /* @var $data ExtendedData  */
-
-        if($data->has('querydata') && $data->has('signature')){
-            $transaction->setProcessedAmount($transaction->getRequestedAmount());
-            $transaction->setResponseCode(PluginInterface::RESPONSE_CODE_SUCCESS);
-            $transaction->setReasonCode(PluginInterface::REASON_CODE_SUCCESS);
-            return true;
-        }
-
         $data->set('AMOUNT', $transaction->getRequestedAmount() * 100);
 
-        $sfpaydata = $this->saferpay->getKeyValuePrototype();
-        foreach ($data->all() as $key => $val) {
-            $sfpaydata->set($key, $val[0]);
+        $sfpaydata = $this->saferpay->getData();
+
+        $sfpaydata->setPaymentData($data,'init');
+
+        $querydata = $data->get('querydata');
+
+        if (isset($querydata['DATA']) && isset($querydata['SIGNATURE'])) {
+            $confirm = $this->saferpay->confirmPayment($querydata['DATA'], $querydata['SIGNATURE']);
+            $data = $transaction->getExtendedData();
+            $sfpaydata->writeInPaymentData($data);
+            if ($confirm != '') {
+                $transaction->setProcessedAmount($transaction->getRequestedAmount());
+                $transaction->setResponseCode(PluginInterface::RESPONSE_CODE_SUCCESS);
+                $transaction->setReasonCode(PluginInterface::REASON_CODE_SUCCESS);
+                return true;
+            }
+            $ex = new FinancialException('Payment cant confirmed');
+            $ex->setFinancialTransaction($transaction);
+            $transaction->setResponseCode('Failed');
+            $transaction->setReasonCode('Failed');
+
         }
 
-        $url = $this->saferpay->initPayment($sfpaydata);
+        $url = $this->saferpay->initPayment($sfpaydata->getInitData());
+
+        $sfpaydata = $this->saferpay->getData();
 
         $data = $transaction->getExtendedData();
-        foreach ($this->saferpay->getData() as $key => $val) {
-            $data->set($key, $val);
-        }
+        $sfpaydata->writeInPaymentData($data);
 
-        $transaction->setExtendedData($data);
-        $this->session->set('payment.saferpay.data', $this->saferpay->getData());
+        // $this->session->set('payment.saferpay.data', $this->saferpay->getData());
 
         if ($url != '') {
-            /*
-             *
-            $transaction->setReferenceNumber());
-            $transaction->setProcessedAmount());
 
-             */
+            $transaction->setReferenceNumber($sfpaydata->getInitData()->get('ACCOUNTID'));
+
+
 
             // redirect to saferpay
             $actionRequest = new ActionRequiredException('User must authorize the transaction.');
@@ -136,26 +143,20 @@ class SaferpayPlugin extends AbstractPlugin
     {
 
         $data = $transaction->getExtendedData();
+        $data->remove('initData');
 
-        $querydata = $data->get('querydata');
-        $signature = $data->get('signature');
+        $sfpaydata = $this->saferpay->getData();
+        $sfpaydata->setPaymentData($data);
 
-        $sfpaydata = $this->saferpay->getKeyValuePrototype();
-        foreach ($data->all() as $key => $val) {
-            $sfpaydata->set($key, $val[0]);
+        if ($this->saferpay->completePayment() != '') {
+            //         $transaction->setReferenceNumber($authorizationId);
+            $transaction->setProcessedAmount($transaction->getRequestedAmount());
+            $transaction->setResponseCode(PluginInterface::RESPONSE_CODE_SUCCESS);
+            $transaction->setReasonCode(PluginInterface::REASON_CODE_SUCCESS);
+            return true;
         }
-        $sfpaydata->set('AMOUNT', $transaction->getRequestedAmount() * 100);
 
-        if ($this->saferpay->confirmPayment($querydata, $signature)) {
-            if ($this->saferpay->completePayment() != '') {
-                //         $transaction->setReferenceNumber($authorizationId);
-                $transaction->setProcessedAmount($transaction->getRequestedAmount());
-                $transaction->setResponseCode(PluginInterface::RESPONSE_CODE_SUCCESS);
-                $transaction->setReasonCode(PluginInterface::REASON_CODE_SUCCESS);
-                return true;
-            }
-        }
-        $ex = new FinancialException('PaymentStatus is not completed: ' . $response->body->get('PAYMENTSTATUS'));
+        $ex = new FinancialException('PaymentStatus is not completed: ');
         $ex->setFinancialTransaction($transaction);
         $transaction->setResponseCode('Failed');
         $transaction->setReasonCode('Failed');
